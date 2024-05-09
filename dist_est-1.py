@@ -68,10 +68,11 @@ def detect_and_draw(image_path):
     return(image_rgb, car_bounding_boxes)
 
 
-def augument_pixel(pixel_val):
-    """Args: Array of pixel coordinates[[x1, y1], [x2, y2]]
+def augument_pixel(pixel_val_arr):
+    """Args: Array of all pixel coordinates[[x1, y1], [x2, y2]]
     Returns: Augumented array [[x1, y1, 1], [x2, y2, 1]]"""
-    for coordinate in pixel_val:
-        coordinate.append(1)
+    for pixel_val in pixel_val_arr:
+        for coordinate in pixel_val:
+            coordinate.append(1)
     return(pixel_val)
 
