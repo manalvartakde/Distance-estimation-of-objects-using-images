@@ -74,5 +74,5 @@ def augument_pixel(pixel_val_arr):
     for pixel_val in pixel_val_arr:
         for coordinate in pixel_val:
             coordinate.append(1)
-    return(pixel_val)
+    return(np.array(pixel_val_arr))
 
