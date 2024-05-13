@@ -7,7 +7,6 @@ import torch
 from PIL import Image
 from pathlib import Path
 
-
 def read_data(folder_path):
     """Args: Folder path 
     Returns: data in the form of dictionares of calib and ground truth labels """
@@ -76,3 +75,8 @@ def augument_pixel(pixel_val_arr):
             coordinate.append(1)
     return(np.array(pixel_val_arr))
 
+def inv_proj(pixel_val_arr, const = 3):
+    """Converts 3x1 Augumented vector into 
+       Args: Array with augumented pixel coordinates, constant to be multiplied
+       Returns: Helper coordinates (Pixel coordinates multiplied by a constant /// Represented by z in slides)"""
+    return(np.array(pixel_val_arr * const))
