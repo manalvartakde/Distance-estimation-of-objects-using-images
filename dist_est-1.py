@@ -76,7 +76,43 @@ def augument_pixel(pixel_val_arr):
     return(np.array(pixel_val_arr))
 
 def inv_proj(pixel_val_arr, const = 3):
-    """Converts 3x1 Augumented vector into 
+    """Multiplies 3x1 Augumented vector with a factor (Helper coordinates)
        Args: Array with augumented pixel coordinates, constant to be multiplied
        Returns: Helper coordinates (Pixel coordinates multiplied by a constant /// Represented by z in slides)"""
     return(np.array(pixel_val_arr * const))
+
+
+def select_centre_coordinate(pixel_val_array):
+    """Selects centre coordinate of the array
+    Args: Array with augumented pixel coordinates
+    Returns: Complate array with Centre bottom line middle coordinate for each bounding box"""
+    final_array = []
+    for pixel_val in pixel_val_array:
+        centre_bottom = np.array([0,0,0])
+        for coordinate in pixel_val:
+            y = coordinate[1]
+            centre_bottom += coordinate
+            final_pt = centre_bottom // 2
+        final_pt[1] = y
+        final_array.append(final_pt)
+    return(np.array(final_array))
+
+def calculate(array_with_sigle_coordinate, callib_mat):
+    """Multiplies the pixel coordinates with inverse callibration matrix
+    Args: Array of single point per bounding box, Callibretion matrix
+    Returns: Helper coordinates"""
+    final_arr = []
+    inv_calib_mat = np.linalg.inv(callib_mat)
+    for coordinate in array_with_sigle_coordinate:
+        final_arr.append(np.dot(inv_calib_mat, coordinate))
+    return(final_arr)
+
+def calculate_distance(helper_coordinates_arr):
+    final_arr = []
+    for coordinate in helper_coordinates_arr:
+        m = 1.65 / coordinate[1]
+        new_coordinate = np.array([coordinate[0] * m, 1.65, m])
+        # Calculate eucledian distance
+        distance = np.sqrt(np.sum(np.square(new_coordinate)))
+        final_arr.append([coordinate, distance])
+    return(final_arr)
