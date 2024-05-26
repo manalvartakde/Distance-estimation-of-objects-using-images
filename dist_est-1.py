@@ -6,6 +6,7 @@ import csv
 import torch
 from PIL import Image
 from pathlib import Path
+import shapely as shape
 
 def read_data(folder_path):
     """Args: Folder path 
@@ -116,3 +117,18 @@ def calculate_distance(helper_coordinates_arr):
         distance = np.sqrt(np.sum(np.square(new_coordinate)))
         final_arr.append([coordinate, distance])
     return(final_arr)
+
+
+def iou(yolo_arr, gt_arr):
+    '''Returns iou of two object areas
+    Args: Two arrays each array has 4 coordinates; 2 corner pts of rect [[x1,y1], [x2,y2]]'''
+    obj_label = shape.Polygon([(yolo_arr[0][0], yolo_arr[0][1]), (yolo_arr[1][0],yolo_arr[0][1]), (yolo_arr[1][0], yolo_arr[1][1]), (yolo_arr[0][0], yolo_arr[1][1])])
+    obj_predicion = shape.Polygon([(gt_arr[0][0], gt_arr[0][1]), (gt_arr[1][0], gt_arr[0][1]), (gt_arr[1][0], gt_arr[1][1]), (gt_arr[0][0], gt_arr[1][1])])
+    # print(obj_label)
+    # label_area = obj_label.area
+    # prediction_area = obj_predicion.area
+    # print(obj_predicion.area)
+    poly_union = obj_label.union(obj_predicion)
+    poly_intersection = obj_label.intersection(obj_predicion)
+    iou = int(poly_intersection.area) / int(poly_union.area)
+    return(round(iou,3))
