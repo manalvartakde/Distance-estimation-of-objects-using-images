@@ -7,11 +7,13 @@ import torch
 from PIL import Image
 from pathlib import Path
 import shapely as shape
+import matplotlib.pyplot as plt
+
 
 f = open("data.txt", "w") 
 f.close()
 
-# Enter path of image folder here
+# Enter path here
 image_folder_path = r"C:/Users/manal/Documents/Python/KITTI_Selection/images/" 
 kitti_folder_loc = r"C:/Users/manal/Documents/Python/KITTI_Selection"
 
@@ -79,10 +81,6 @@ def iou(yolo_arr, gt_arr):
     Args: Two arrays each array has 4 coordinates; 2 corner pts of rect [[x1,y1], [x2,y2]]'''
     obj_label = shape.Polygon([(yolo_arr[0][0], yolo_arr[0][1]), (yolo_arr[1][0],yolo_arr[0][1]), (yolo_arr[1][0], yolo_arr[1][1]), (yolo_arr[0][0], yolo_arr[1][1])])
     obj_predicion = shape.Polygon([(gt_arr[0][0], gt_arr[0][1]), (gt_arr[1][0], gt_arr[0][1]), (gt_arr[1][0], gt_arr[1][1]), (gt_arr[0][0], gt_arr[1][1])])
-    # print(obj_label)
-    # label_area = obj_label.area
-    # prediction_area = obj_predicion.area
-    # print(obj_predicion.area)
     poly_union = obj_label.union(obj_predicion)
     poly_intersection = obj_label.intersection(obj_predicion)
     iou = int(poly_intersection.area) / int(poly_union.area)
@@ -125,6 +123,8 @@ def calculate(array_with_sigle_coordinate, callib_mat):
     return(final_arr)
 
 def calculate_distance(helper_coordinates_arr):
+    """Calculates distance from the helper coordinates
+    Args: Helper coordinate array"""
     final_arr = []
     for coordinate in helper_coordinates_arr:
         m = 1.65 / coordinate[1]
@@ -134,87 +134,100 @@ def calculate_distance(helper_coordinates_arr):
         final_arr.append([distance])
     return(final_arr)
 
+
+
+
 # List of all the images 
 f = os.listdir(image_folder_path)
 f = [i[0:6] for i in f]
 not_matched_boxes = 0
 
-# Iterating through all the images
-for image_id in f:
-    # read data and store
-    (labels, calib) = read_data(kitti_folder_loc)
-    # global bbx_dict
-    (image, bbx_dict) = detect_and_draw(image_id)
-    # Appending gt rectangle corners to the bbx dict
-    arr = []
-    for i in labels[image_id]:
-        arr.append([[int(float(i[1])), int(float(i[2]))], [int(float(i[3])), int(float(i[4]))]])
-    bbx_dict[image_id].append(arr)
+if(__name__ == "__main__"):
+    # Iterating through all the images
+    for image_id in f:
+        # read data and store
+        (labels, calib) = read_data(kitti_folder_loc)
+        # global bbx_dict
+        (image, bbx_dict) = detect_and_draw(image_id)
+        # Appending gt rectangle corners to the bbx dict
+        arr = []
+        for i in labels[image_id]:
+            arr.append([[int(float(i[1])), int(float(i[2]))], [int(float(i[3])), int(float(i[4]))]])
+        bbx_dict[image_id].append(arr)
 
-    calib_mat = calib[image_id]
-    rect_coord = bbx_dict[image_id][0][:]
-    aug_mat = augument_pixel(rect_coord, image_id)
-    centre_coordinates = select_centre_coordinate(aug_mat)
+        calib_mat = calib[image_id]
+        rect_coord = bbx_dict[image_id][0][:]
+        aug_mat = augument_pixel(rect_coord, image_id)
+        centre_coordinates = select_centre_coordinate(aug_mat)
 
-    # # Values after K inverse and coordinates values
-    helper_coordinates = calculate(centre_coordinates, calib_mat)
- 
-    dist_arr = calculate_distance(helper_coordinates)
+        # # Values after K inverse and coordinates values
+        helper_coordinates = calculate(centre_coordinates, calib_mat)
+    
+        dist_arr = calculate_distance(helper_coordinates)
 
-    # Appending Ground truth distances to bbx_dict
-    arr = []
-    for i in labels[image_id]:
-        arr.append(float(i[5]))
-    bbx_dict[image_id].append(arr)
+        # Appending Ground truth distances to bbx_dict
+        arr = []
+        for i in labels[image_id]:
+            arr.append(float(i[5]))
+        bbx_dict[image_id].append(arr)
 
-    # Appending calculated distances to bbx_dict
-    bbx_dict[image_id].append(dist_arr)
+        # Appending calculated distances to bbx_dict
+        bbx_dict[image_id].append(dist_arr)
 
-    # writing data in txt file
+        # writing data in txt file
+        with open('data.txt', 'a') as outfile:
+            outfile.write("################### \n Image_id ") 
+            outfile.write(image_id)
+            outfile.write("\n")
+
+
+        # This loop is for matching bounding boxes
+        for i in range(len(bbx_dict[image_id][1])):  # ground truths
+            (gt_ind, yolo_ind, best_iou) = (-1,-1,0)
+            for j in range(len(bbx_dict[image_id][0])): # yolo detctions // calculated
+                iou_val = iou(bbx_dict[image_id][1][i], bbx_dict[image_id][0][j])
+                # print(iou_val)
+                if (iou_val > 0.4):
+                        if(best_iou < iou_val):
+                            best_iou = iou_val
+                            (gt_ind, yolo_ind) = (i,j)
+
+            if(gt_ind == -1):
+                # writing data in txt file
+                with open('data.txt', 'a') as outfile:
+                    outfile.write("Box not matched")
+                    outfile.write("\n")
+                    print("Writing Data ...")
+                    not_matched_boxes += 1
+            else:
+                # writing data in txt file
+                with open('data.txt', 'a') as outfile:
+                    outfile.write(str(bbx_dict[image_id][3][gt_ind]))
+                    outfile.write("   ")
+                    outfile.write(str(bbx_dict[image_id][4][yolo_ind]))
+                    outfile.write("\n")
+                    print("Writing Data ...")
+            # Bounding box for ground truth // colour: blue
+            cv2.rectangle(image, bbx_dict[image_id][1][i][0], bbx_dict[image_id][1][i][1], (255,0,0), 2)
+            calc_dist = str(round(bbx_dict[image_id][4][yolo_ind][0], 2)) # calc dist value
+            gt_dist = str(round(bbx_dict[image_id][3][gt_ind], 2)) # gt distance value
+            
+            if(gt_ind != -1):
+                # Display Calculated distances // colour: green
+                cv2.putText(image, calc_dist, bbx_dict[image_id][1][gt_ind][0][0:2],cv2.FONT_HERSHEY_PLAIN, 1,(100,255,100),1)
+                # Display ground truth distances // colour: blue
+                cv2.putText(image, gt_dist, bbx_dict[image_id][1][gt_ind][1][0:2],cv2.FONT_HERSHEY_PLAIN, 1,(255,0,0),2)
+        cv2.imshow(image_id, image)
+        cv2.waitKey(0)
+
+
+        # Uncomment this if you are displaying the image using matplotlib and uncomment only above 2 lines
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 
+        # plt.imshow(image)
+        # plt.show()
+        #################################################################
+
     with open('data.txt', 'a') as outfile:
-        outfile.write("################### \n Image_id ") 
-        outfile.write(image_id)
-        outfile.write("\n")
-
-    for i in range(len(bbx_dict[image_id][1])):  # ground truths
-        (gt_ind, yolo_ind, best_iou) = (-1,-1,0)
-        for j in range(len(bbx_dict[image_id][0])): # yolo detctions // calculated
-            iou_val = iou(bbx_dict[image_id][1][i], bbx_dict[image_id][0][j])
-            # print(iou_val)
-            if (iou_val > 0.4):
-                    if(best_iou < iou_val):
-                        best_iou = iou_val
-                        (gt_ind, yolo_ind) = (i,j)
-
-        if(gt_ind == -1):
-            # writing data in txt file
-            with open('data.txt', 'a') as outfile:
-                outfile.write("Box not matched")
-                outfile.write("\n")
-                print("Writing Data ...")
-                not_matched_boxes += 1
-        else:
-            # writing data in txt file
-            with open('data.txt', 'a') as outfile:
-                outfile.write(str(bbx_dict[image_id][3][gt_ind]))
-                outfile.write("   ")
-                outfile.write(str(bbx_dict[image_id][4][yolo_ind]))
-                outfile.write("\n")
-                print("Writing Data ...")
-        # Bounding box for ground truth // colour: blue
-        cv2.rectangle(image, bbx_dict[image_id][1][i][0], bbx_dict[image_id][1][i][1], (255,0,0), 2)
-        calc_dist = str(round(bbx_dict[image_id][4][yolo_ind][0], 2)) # calc dist value
-        gt_dist = str(round(bbx_dict[image_id][3][gt_ind], 2)) # gt distance value
-        
-        if(gt_ind != -1):
-            # Display Calculated distances // colour: green
-            cv2.putText(image, calc_dist, (bbx_dict[image_id][1][gt_ind][0][0],bbx_dict[image_id][1][gt_ind][0][1]),cv2.FONT_HERSHEY_PLAIN, 1,(100,255,100),1)
-            # Display ground truth distances // colour: blue
-            cv2.putText(image, gt_dist, (bbx_dict[image_id][1][gt_ind][1][0],bbx_dict[image_id][1][gt_ind][1][1]),cv2.FONT_HERSHEY_PLAIN, 1,(255,0,0),2)
-    # cv2.imshow("image", image)
-    # cv2.waitKey(0)
-        
-with open('data.txt', 'a') as outfile:
-    outfile.write("\n\n")
-    outfile.write("Total  Unmatched boxes: ")       
-    outfile.write(str(not_matched_boxes))
+        outfile.write("\n\n")
+        outfile.write("Total  Unmatched boxes: ")       
+        outfile.write(str(not_matched_boxes))
